@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Arcadia</title>
+<style>
+body {
+  background-color: black;
+  color: white;
+  font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  margin: 0;
+  overflow: hidden;
+}
+h1 { margin-bottom: 20px; }
+button {
+  background-color: #333;
+  color: white;
+  border: 2px solid white;
+  padding: 15px 30px;
+  margin: 10px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+button:hover { background-color: white; color: black; }
+canvas { background-color: #111; display: block; margin: 20px auto; border: 2px solid white; }
+.section { display: none; text-align: center; }
+#gameOverMessage { display: none; color: red; font-size: 50px; text-align: center; margin-top: 20px; }
+
+#cookieButton { padding: 50px; font-size: 30px; margin:20px; }
+
+#ticTacToeBoard { display: grid; grid-template-columns: repeat(3, 60px); grid-gap: 5px; margin: 20px auto; }
+#ticTacToeBoard button { width:60px;height:60px;font-size:30px; }
+#ticTacToeFooter { margin-top: 10px; font-size:16px; }
+
+#memoryBoard { display: grid; grid-template-columns: repeat(4, 60px); grid-gap: 5px; margin: 20px auto; }
+#memoryBoard button { width:60px;height:60px;font-size:24px; }
+</style>
+</head>
+<body>
+
+<h1 id="menuTitle">Arcadia</h1>
+<div id="gameOverMessage">GAME OVER !</div>
+
+<!-- Menu principal -->
+<div id="mainMenu" class="section" style="display:block;">
+  <button onclick="playRandomGame()">Accéder</button>
+  <button onclick="showCredits()">Crédit</button>
+</div>
+
+<!-- Crédits -->
+<div id="creditsSection" class="section">
+  <ul>
+    <li>Ghaël</li>
+    <li>Aanolez</li>
+  </ul>
+  <button onclick="backToMenu()">Retour au menu</button>
+</div>
+
+<!-- Snake -->
+<div id="snakeSection" class="section">
+  <canvas id="snakeCanvas" width="400" height="400"></canvas>
+  <button onclick="backToMenu()">Retour au menu</button>
+</div>
+
+<!-- Pong -->
+<div id="pongSection" class="section">
+  <canvas id="pongCanvas" width="500" height="400"></canvas>
+  <button onclick="backToMenu()">Retour au menu</button>
+</div>
+
+<!-- Flappy Bird -->
+<div id="flappySection" class="section">
+  <canvas id="flappyCanvas" width="400" height="600"></canvas>
+  <button onclick="backToMenu()">Retour au menu</button>
+</div>
+
+<!-- Cookie Clicker -->
+<div id="cookieSection" class="section">
+  <button id="cookieButton">🍪</button>
+  <p>Cookies : <span id="cookieCount">0</span></p>
+  <button onclick="backToMenu()">Retour au menu</button>
+</div>
+
+<!-- Tic Tac Toe -->
+<div id="ticTacToeSection" class="section">
+  <div id="ticTacToeBoard"></div>
+  <p id="ticTacToeMessage"></p>
+  <div id="ticTacToeFooter">Jeu à 2</div>
+  <button onclick="backToMenu()">Retour au menu</button>
+</div>
+
+<!-- Memory Game -->
+<div id="memorySection" class="section">
+  <div id="memoryBoard"></div>
+  <p id="memoryMessage"></p>
+  <button onclick="backToMenu()">Retour au menu</button>
+</div>
+
+<script>
+// ---------------- Menu ----------------
+function showCredits() { showSection('creditsSection', 'Crédits'); }
+function backToMenu() { stopAllGames(); showSection('mainMenu', 'Arcadia'); }
+
+function showSection(sectionId, title) {
+  document.querySelectorAll('.section').forEach(s => s.style.display='none');
+  document.getElementById(sectionId).style.display='block';
+  document.getElementById('menuTitle').textContent = title;
+}
+
+// ---------------- Game Over sécurisé ----------------
+let isGameOver=false;
+function triggerGameOver() {
+  if(isGameOver) return;
+  isGameOver=true;
+  stopAllGames();
+  document.getElementById('gameOverMessage').style.display='block';
+  setTimeout(()=>{
+    document.getElementById('gameOverMessage').style.display='none';
+    isGameOver=false;
+    backToMenu();
+  },2000);
+}
+
+// ---------------- Jeu Aléatoire ----------------
+function playRandomGame() {
+  const games = [startSnake, startPong, startFlappy, startCookie, startTicTacToe, startMemory];
+  const randomIndex = Math.floor(Math.random() * games.length);
+  games[randomIndex]();
+}
+
+// ---------------- Stop tous les jeux ----------------
+function stopAllGames() {
+  // Snake
+  clearInterval(snakeInterval); snakeInterval=null;
+  document.onkeydown = null;
+
+  // Pong
+  clearInterval(pongInterval); pongInterval=null;
+
+  // Flappy
+  clearInterval(flappyInterval); flappyInterval=null;
+
+  // Cookie Clicker
+  if(cookieClickHandler) document.getElementById("cookieButton").removeEventListener('click', cookieClickHandler);
+}
+
+// ---------------- Snake ----------------
+let snakeCanvas, snakeCtx, snake, snakeFood, snakeDir, snakeInterval;
+function startSnake() {
+  showSection('snakeSection','Snake');
+  snakeCanvas=document.getElementById("snakeCanvas");
+  snakeCtx=snakeCanvas.getContext("2d");
+  snake=[{x:10,y:10}]; snakeDir="RIGHT"; snakeFood=randomFood();
+  document.onkeydown = function(e){
+    if(e.key==="ArrowUp" && snakeDir!=="DOWN") snakeDir="UP";
+    if(e.key==="ArrowDown" && snakeDir!=="UP") snakeDir="DOWN";
+    if(e.key==="ArrowLeft" && snakeDir!=="RIGHT") snakeDir="LEFT";
+    if(e.key==="ArrowRight" && snakeDir!=="LEFT") snakeDir="RIGHT";
+  }
+  if(snakeInterval) clearInterval(snakeInterval);
+  snakeInterval=setInterval(updateSnake,150);
+}
+function randomFood(){ return {x:Math.floor(Math.random()*20),y:Math.floor(Math.random()*20)} }
+function updateSnake(){
+  let head={x:snake[0].x,y:snake[0].y};
+  if(snakeDir==="UP") head.y--; if(snakeDir==="DOWN") head.y++; if(snakeDir==="LEFT") head.x--; if(snakeDir==="RIGHT") head.x++;
+  if(head.x<0||head.x>=20||head.y<0||head.y>=20||snake.some(s=>s.x===head.x&&s.y===head.y)){ triggerGameOver(); return; }
+  snake.unshift(head);
+  if(head.x===snakeFood.x&&head.y===snakeFood.y) snakeFood=randomFood(); else snake.pop();
+  drawSnake();
+}
+function drawSnake(){
+  snakeCtx.fillStyle="#111"; snakeCtx.fillRect(0,0,snakeCanvas.width,snakeCanvas.height);
+  snakeCtx.fillStyle="lime"; snake.forEach(p=>snakeCtx.fillRect(p.x*20,p.y*20,20,20));
+  snakeCtx.fillStyle="red"; snakeCtx.fillRect(snakeFood.x*20,snakeFood.y*20,20,20);
+}
+
+// ---------------- Pong ----------------
+let pongCanvas, pongCtx, ball, paddle1, paddle2, pongInterval;
+function startPong() {
+  showSection('pongSection','Pong');
+  pongCanvas=document.getElementById("pongCanvas");
+  pongCtx=pongCanvas.getContext("2d");
+  ball={x:250,y:200,dx:4,dy:4,r:10};
+  paddle1={x:10,y:150,w:10,h:100};
+  paddle2={x:480,y:150,w:10,h:100};
+  document.onkeydown = function(e){
+    if(e.key==="w") paddle1.y-=20; if(e.key==="s") paddle1.y+=20;
+    if(e.key==="ArrowUp") paddle2.y-=20; if(e.key==="ArrowDown") paddle2.y+=20;
+  }
+  if(pongInterval) clearInterval(pongInterval);
+  pongInterval=setInterval(updatePong,20);
+}
+function updatePong(){
+  ball.x+=ball.dx; ball.y+=ball.dy;
+  if(ball.y<0||ball.y>400) ball.dy=-ball.dy;
+  if(ball.x-ball.r<paddle1.x+paddle1.w && ball.y>paddle1.y && ball.y<paddle1.y+paddle1.h) ball.dx=-ball.dx;
+  if(ball.x+ball.r>paddle2.x && ball.y>paddle2.y && ball.y<paddle2.y+paddle2.h) ball.dx=-ball.dx;
+  if(ball.x<0||ball.x>500){ triggerGameOver(); return; }
+  drawPong();
+}
+function drawPong(){
+  pongCtx.fillStyle="#111"; pongCtx.fillRect(0,0,pongCanvas.width,pongCanvas.height);
+  pongCtx.fillStyle="white"; pongCtx.fillRect(paddle1.x,paddle1.y,paddle1.w,paddle1.h);
+  pongCtx.fillRect(paddle2.x,paddle2.y,paddle2.w,paddle2.h);
+  pongCtx.beginPath(); pongCtx.arc(ball.x,ball.y,ball.r,0,Math.PI*2); pongCtx.fill();
+}
+
+// ---------------- Flappy Bird corrigé ----------------
+let flappyCanvas, flappyCtx, bird, pipes, flappyInterval;
+function startFlappy() {
+  showSection('flappySection','Flappy Bird');
+  flappyCanvas=document.getElementById("flappyCanvas");
+  flappyCtx=flappyCanvas.getContext("2d");
+  bird={x:50,y:300,dy:0};
+  pipes=[];
+  document.onkeydown=function(e){if(e.key===" ") bird.dy=-6;}
+  if(flappyInterval) clearInterval(flappyInterval);
+  flappyInterval=setInterval(updateFlappy,20);
+}
+function updateFlappy(){
+  bird.dy += 0.3;
+  bird.y += bird.dy;
+
+  // Ajouter des tuyaux avec gap vertical constant
+  if(Math.random() < 0.02 && pipes.length < 3){
+    let gap = 120;
+    let centerY = Math.floor(Math.random() * (flappyCanvas.height - gap - 40) + 20);
+    pipes.push({x:400, gapY:centerY, gapHeight:gap});
+  }
+
+  // Déplacement et suppression des tuyaux
+  for(let i=pipes.length-1;i>=0;i--){
+    pipes[i].x -= 3;
+    if(pipes[i].x < -50) pipes.splice(i,1);
+  }
+
+  // Collision avec tuyaux
+  for(let p of pipes){
+    if(bird.x + 20 > p.x && bird.x < p.x + 50 && bird.y < p.gapY){ triggerGameOver(); return; }
+    if(bird.x + 20 > p.x && bird.x < p.x + 50 && bird.y + 20 > p.gapY + p.gapHeight){ triggerGameOver(); return; }
+  }
+
+  // Collision avec le sol ou le plafond
+  if(bird.y + 20 > flappyCanvas.height || bird.y < 0){ triggerGameOver(); return; }
+
+  drawFlappy();
+}
+function drawFlappy(){
+  flappyCtx.fillStyle = "#111";
+  flappyCtx.fillRect(0,0,flappyCanvas.width,flappyCanvas.height);
+
+  // oiseau
+  flappyCtx.fillStyle = "yellow";
+  flappyCtx.fillRect(bird.x, bird.y, 20, 20);
+
+  // tuyaux
+  flappyCtx.fillStyle = "green";
+  for(let p of pipes){
+    flappyCtx.fillRect(p.x,0,50,p.gapY);
+    flappyCtx.fillRect(p.x,p.gapY+p.gapHeight,50,flappyCanvas.height-(p.gapY+p.gapHeight));
+  }
+}
+
+// ---------------- Cookie Clicker ----------------
+let cookieCount=0, cookieClickHandler=null;
+function startCookie(){
+  showSection('cookieSection','Cookie Clicker');
+  cookieCount=0;
+  document.getElementById("cookieCount").textContent=cookieCount;
+  cookieClickHandler=function(){ cookieCount++; document.getElementById("cookieCount").textContent=cookieCount; };
+  document.getElementById("cookieButton").addEventListener('click', cookieClickHandler);
+}
+
+// ---------------- Tic Tac Toe ----------------
+let ticTacToeBoard=[], ticTacToeTurn='X';
+function startTicTacToe(){
+  showSection('ticTacToeSection','Tic Tac Toe');
+  const boardDiv=document.getElementById("ticTacToeBoard");
+  boardDiv.innerHTML=''; ticTacToeBoard=Array(9).fill(''); ticTacToeTurn='X';
+  document.getElementById("ticTacToeMessage").textContent='';
+  for(let i=0;i<9;i++){
+    let btn=document.createElement("button"); btn.id="cell"+i;
+    btn.onclick=function(){ ticTacToeMove(i); }; boardDiv.appendChild(btn);
+  }
+}
+function ticTacToeMove(i){
+  if(ticTacToeBoard[i]!=='') return;
+  ticTacToeBoard[i]=ticTacToeTurn; document.getElementById("cell"+i).textContent=ticTacToeTurn;
+  if(checkTicTacToeWin()){ document.getElementById("ticTacToeMessage").textContent=ticTacToeTurn+' a gagné !'; return; }
+  if(ticTacToeBoard.every(c=>c!=='')){ document.getElementById("ticTacToeMessage").textContent='Égalité !'; return; }
+  ticTacToeTurn=(ticTacToeTurn==='X')?'O':'X';
+}
+function checkTicTacToeWin(){
+  const w=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  return w.some(a=> ticTacToeBoard[a[0]]!=='' && ticTacToeBoard[a[0]]===ticTacToeBoard[a[1]] && ticTacToeBoard[a[1]]===ticTacToeBoard[a[2]]);
+}
+
+// ---------------- Memory Game ----------------
+let memoryValues=[], memoryFlipped=[];
+function startMemory(){
+  showSection('memorySection','Jeu de Mémoire');
+  const board=document.getElementById("memoryBoard"); board.innerHTML='';
+  const numbers=[1,2,3,4,1,2,3,4]; numbers.sort(()=>0.5-Math.random()); memoryValues=numbers; memoryFlipped=Array(8).fill(false);
+  document.getElementById("memoryMessage").textContent='';
+  for(let i=0;i<8;i++){
+    let btn=document.createElement("button"); btn.id="mem"+i; btn.textContent='?'; btn.onclick=function(){flipMemory(i);}; board.appendChild(btn);
+  }
+}
+let memoryFirst=null;
+function flipMemory(i){
+  if(memoryFlipped[i]) return;
+  document.getElementById("mem"+i).textContent=memoryValues[i]; 
+  if(memoryFirst===null){ memoryFirst=i; return; }
+  if(memoryValues[i]===memoryValues[memoryFirst]){ memoryFlipped[i]=memoryFlipped[memoryFirst]=true; memoryFirst=null; }
+  else{ setTimeout(()=>{document.getElementById("mem"+i).textContent='?'; document.getElementById("mem"+memoryFirst).textContent='?'; memoryFirst=null;},500); }
+  if(memoryFlipped.every(f=>f)){ document.getElementById("memoryMessage").textContent='Vous avez gagné !'; }
+}
+</script>
+
+</body>
+</html>
